@@ -1,0 +1,8 @@
+{
+	"files.associations": {
+		"usb_device.h": "c",
+		"main.h": "c",
+		"debug.h": "c",
+		"adc.h": "c"
+	}
+}
