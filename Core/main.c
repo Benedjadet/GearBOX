@@ -6,6 +6,8 @@
 #include "uart1.h"
 #include "adc.h"
 #include "dma.h"
+#include "i2c1.h"
+#include "i2c2.h"
 #include <stdbool.h>
 
 // H-shifter mode analog axis thresholds
@@ -34,6 +36,10 @@ void SystemClock_Config(void);
 //int filtration(uint8_t pin, uint8_t count);
 static void MX_GPIO_Init(void);
 
+
+uint8_t data1[2] = {0};
+uint8_t data2[2] = {0};
+
 /**
  * @brief  The application entry point.
  * @retval int
@@ -46,6 +52,8 @@ int main(void)
 	UART1_Init();
 	DMA1_Init();
 	ADC1_Init();
+	I2C1_Init();
+	I2C2_Init();
 	MX_USB_DEVICE_Init();
 
 	HAL_ADC_Start_DMA(&hadc1, adcBuf, 2);
@@ -54,9 +62,24 @@ int main(void)
 	{
 		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
 
+		// Адрес 0x36 нужно смещать в лево на 1.
+		HAL_I2C_Mem_Read(&hi2c1, 0x6c, 0x0C, 1, data1, 2, 1000);
+		HAL_I2C_Mem_Read(&hi2c2, 0x6c, 0x0C, 1, data2, 2, 1000);
+
+		
+
+
 		bool Reverse = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_2);
-		uint32_t AxisX = FiltrationValue[0];
-		uint32_t AxisY = FiltrationValue[1];
+		//uint32_t AxisX = FiltrationValue[0];
+		//uint32_t AxisY = FiltrationValue[1];
+
+		// Младший байт приходит вторым.
+		uint32_t AxisX = data1[1];
+		AxisX |= data1[0] << 8;
+
+		uint32_t AxisY = data2[1];
+		AxisY |= data2[0] << 8;
+
 
 		uint8_t Gear = BUTTON_NONE;
 		static uint8_t GearLast = BUTTON_NONE;
@@ -105,7 +128,7 @@ int main(void)
 			printf("Gear %d\n", Gear);
 		}
 
-		printf("X %ld Y %ld\n", AxisX, AxisY);
+		printf("X %ld Y %ld\n\r", AxisX, AxisY);
 		HAL_Delay(100);
 
 	}
