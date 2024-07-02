@@ -11,8 +11,8 @@
 #include <stdbool.h>
 
 // H-shifter mode analog axis thresholds
-#define AXIS_X_LEFT     1560
-#define AXIS_X_RIGHT    1480
+#define AXIS_X_LEFT     720
+#define AXIS_X_RIGHT    640
 #define AXIS_Y_UP       720
 #define AXIS_Y_DOWN     1000
 
