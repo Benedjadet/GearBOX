@@ -20,7 +20,7 @@ void NMI_Handler(void)
  */
 void HardFault_Handler(void)
 {
-	__ASM volatile(
+	/* __ASM volatile(
 		" cpsid i				                                    \n"
 		" tst lr, #4                                                \n"
 		" ite eq                                                    \n"
@@ -29,7 +29,12 @@ void HardFault_Handler(void)
 		" ldr r1, [r0, #24]                                         \n"
 		" ldr r2, handler2_address_const                            \n"
 		" bx r2                                                     \n"
-		" handler2_address_const: .word prvGetRegistersFromStack    \n");
+		" handler2_address_const: .word prvGetRegistersFromStack    \n"); */
+
+
+		while (1)
+	{
+	}
 }
 
 /**
@@ -94,7 +99,7 @@ void SysTick_Handler(void)
 /**
  * @brief This function handles USB low priority or CAN RX0 interrupts.
  */
-void USB_LP_CAN1_RX0_IRQHandler(void)
+void USB_IRQHandler(void)
 {
 	HAL_PCD_IRQHandler(&hpcd_USB_FS);
 }

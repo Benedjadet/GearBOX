@@ -4,6 +4,9 @@
 		"main.h": "c",
 		"debug.h": "c",
 		"adc.h": "c",
-		"i2c1.h": "c"
+		"i2c1.h": "c",
+		"usbd_core.h": "c",
+		"i2c2.h": "c",
+		"usbd_hid.h": "c"
 	}
 }

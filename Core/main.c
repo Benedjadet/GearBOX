@@ -11,10 +11,10 @@
 #include <stdbool.h>
 
 // H-shifter mode analog axis thresholds
-#define AXIS_X_LEFT     890
-#define AXIS_X_RIGHT    910
-#define AXIS_Y_UP       230
-#define AXIS_Y_DOWN     130
+#define AXIS_X_LEFT     1560
+#define AXIS_X_RIGHT    1480
+#define AXIS_Y_UP       720
+#define AXIS_Y_DOWN     1000
 
 #define BUTTON_NONE     -1
 #define BUTTON_1         0
@@ -37,8 +37,8 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 
 
-uint8_t data1[2] = {0};
-uint8_t data2[2] = {0};
+uint8_t AxisXraw[2] = {0};
+uint8_t AxisYraw[2] = {0};
 
 /**
  * @brief  The application entry point.
@@ -47,59 +47,53 @@ uint8_t data2[2] = {0};
 int main(void)
 {
 	HAL_Init();
+	HAL_IncTick();
 	SystemClock_Config();
 	MX_GPIO_Init();
 	UART1_Init();
 	DMA1_Init();
-	ADC1_Init();
+	//ADC1_Init();
 	I2C1_Init();
 	I2C2_Init();
 	MX_USB_DEVICE_Init();
 
-	HAL_ADC_Start_DMA(&hadc1, adcBuf, 2);
+	//HAL_ADC_Start_DMA(&hadc1, adcBuf, 2);
 
 	while (1)
 	{
-		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+		//HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
 
 		// Адрес 0x36 нужно смещать в лево на 1.
-		HAL_I2C_Mem_Read(&hi2c1, 0x6c, 0x0C, 1, data1, 2, 1000);
-		HAL_I2C_Mem_Read(&hi2c2, 0x6c, 0x0C, 1, data2, 2, 1000);
+		HAL_I2C_Mem_Read(&hi2c2, 0x6c, 0x0C, 1, AxisXraw, 2, 1000);
+		HAL_I2C_Mem_Read(&hi2c1, 0x6c, 0x0C, 1, AxisYraw, 2, 1000);
 
-		
-
-
-		bool Reverse = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_2);
+		bool Reverse = !HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_2);
 		//uint32_t AxisX = FiltrationValue[0];
 		//uint32_t AxisY = FiltrationValue[1];
 
 		// Младший байт приходит вторым.
-		uint32_t AxisX = data1[1];
-		AxisX |= data1[0] << 8;
+		uint32_t AxisX = AxisXraw[1];
+		AxisX |= AxisXraw[0] << 8;
 
-		uint32_t AxisY = data2[1];
-		AxisY |= data2[0] << 8;
+		uint32_t AxisY = AxisYraw[1];
+		AxisY |= AxisYraw[0] << 8;
 
 
 		uint8_t Gear = BUTTON_NONE;
 		static uint8_t GearLast = BUTTON_NONE;
 
 		// Положение оси Х.
-		bool AxisXLeft = (AxisX <= AXIS_X_LEFT);
-		bool AxisXMiddle = (AxisX > AXIS_X_LEFT) && (AxisX < AXIS_X_RIGHT);
-		bool AxisXRight = (AxisX >= AXIS_X_RIGHT);
+		bool AxisXLeft = (AxisX >= AXIS_X_LEFT);
+		bool AxisXMiddle = (AxisX < AXIS_X_LEFT) && (AxisX > AXIS_X_RIGHT);
+		bool AxisXRight = (AxisX <= AXIS_X_RIGHT);
 
 		// Положение оси Y.
-		bool AxisYUp = (AxisY >= AXIS_Y_UP);
+		bool AxisYUp = (AxisY <= AXIS_Y_UP);
 		//bool AxisYMiddle = (AxisY < AXIS_Y_UP) && (AxisY > AXIS_Y_DOWN);
-		bool AxisYDown = (AxisY <= AXIS_Y_DOWN);
+		bool AxisYDown = (AxisY >= AXIS_Y_DOWN);
 
 		// Передача.
-		if (Reverse) {
-			if (AxisXRight && AxisYDown){
-				Gear = BUTTON_7;
-			}
-		} else if (AxisXLeft && AxisYUp) {
+		if (AxisXLeft && AxisYUp) {
 			Gear = BUTTON_1;
 		} else if (AxisXLeft && AxisYDown) {
 			Gear = BUTTON_2;
@@ -109,11 +103,11 @@ int main(void)
 			Gear = BUTTON_4;
 		} else if (AxisXRight && AxisYUp) {
 			Gear = BUTTON_5;
-		} else if (AxisXRight && AxisYDown) {
+		} else if (AxisXRight && AxisYDown && !Reverse) {
 			Gear = BUTTON_6;
-		}
-		else
-		{
+		} else if (AxisXRight && AxisYDown && Reverse){
+			Gear = BUTTON_7;
+		} else {
 			Gear = BUTTON_8;
 		}
 
@@ -141,43 +135,32 @@ int main(void)
  */
 void SystemClock_Config(void)
 {
-	RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
+	RCC_ClkInitTypeDef RCC_ClkInitStruct;
+  RCC_CRSInitTypeDef RCC_CRSInitStruct = {0};
 
-  /** Initializes the RCC Oscillators according to the specified parameters
-  * in the RCC_OscInitTypeDef structure.
-  */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV2;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /** Initializes the CPU, AHB and APB buses clocks
-  */
+  __HAL_RCC_HSI48_ENABLE();
+  while(__HAL_RCC_GET_FLAG(RCC_FLAG_HSI48RDY) == RESET );
+
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+    |RCC_CLOCKTYPE_PCLK1;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI48;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+  HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1);
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
-  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLL_DIV1_5;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-  {
-    Error_Handler();
-  }
+  __HAL_RCC_USB_CONFIG( RCC_USBCLKSOURCE_HSI48 );
+
+  /* CRS */
+  __HAL_RCC_CRS_CLK_ENABLE();
+  
+  RCC_CRSInitStruct.Prescaler = RCC_CRS_SYNC_DIV1;
+  RCC_CRSInitStruct.Source = RCC_CRS_SYNC_SOURCE_USB;
+  RCC_CRSInitStruct.Polarity = RCC_CRS_SYNC_POLARITY_RISING;
+  RCC_CRSInitStruct.ReloadValue = __HAL_RCC_CRS_RELOADVALUE_CALCULATE( 48000000, 1000 );
+  RCC_CRSInitStruct.ErrorLimitValue = RCC_CRS_ERRORLIMIT_DEFAULT;
+  RCC_CRSInitStruct.HSI48CalibrationValue = RCC_CRS_HSI48CALIBRATION_DEFAULT;
+
+  HAL_RCCEx_CRSConfig( &RCC_CRSInitStruct );
 }
 
 /**
@@ -203,7 +186,7 @@ static void MX_GPIO_Init(void)
 
 	gpioInit.Pin = GPIO_PIN_2;
 	gpioInit.Mode = GPIO_MODE_INPUT;
-	gpioInit.Pull = GPIO_PULLDOWN;
+	gpioInit.Pull = GPIO_PULLUP;
 	gpioInit.Speed = GPIO_SPEED_LOW;
 	HAL_GPIO_Init(GPIOA, &gpioInit);
 }
@@ -216,16 +199,26 @@ void HAL_MspInit(void)
 
   /* USER CODE END MspInit 0 */
 
-  __HAL_RCC_AFIO_CLK_ENABLE();
-  __HAL_RCC_PWR_CLK_ENABLE();
+  //__HAL_RCC_AFIO_CLK_ENABLE();
+  //__HAL_RCC_PWR_CLK_ENABLE();
 
   /* System interrupt init*/
 
-	__HAL_AFIO_REMAP_SWJ_NOJTAG();
+	//__HAL_AFIO_REMAP_SWJ_NOJTAG();
 
   /* USER CODE BEGIN MspInit 1 */
 
   /* USER CODE END MspInit 1 */
+
+
+	__HAL_RCC_SYSCFG_CLK_ENABLE();
+	__HAL_RCC_PWR_CLK_ENABLE();
+
+	__HAL_RCC_GPIOF_CLK_ENABLE();
+	__HAL_RCC_GPIOA_CLK_ENABLE();
+	__HAL_RCC_GPIOB_CLK_ENABLE();
+
+
 }
 
 
