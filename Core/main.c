@@ -13,7 +13,7 @@
 // H-shifter mode analog axis thresholds
 #define AXIS_X_LEFT     720
 #define AXIS_X_RIGHT    640
-#define AXIS_Y_UP       720
+#define AXIS_Y_UP       780
 #define AXIS_Y_DOWN     1000
 
 #define BUTTON_NONE     -1
